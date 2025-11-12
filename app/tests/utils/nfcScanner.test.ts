@@ -3,22 +3,19 @@
 // NOTE: Converts to Apache-2.0 on 2029-06-11 per LICENSE.
 
 import { Buffer } from 'buffer';
-import { Platform } from 'react-native';
 
 import { parseScanResponse, scan } from '@/utils/nfcScanner';
 import { PassportReader } from '@/utils/passportReader';
 
-// Mock Platform.OS for the entire test suite
-jest.mock('react-native', () => {
-  const RN = jest.requireActual('react-native');
-  return {
-    ...RN,
-    Platform: {
-      ...RN.Platform,
-      OS: 'ios', // Default to iOS
-    },
-  };
-});
+// Mock Platform without requiring react-native to avoid memory issues
+const Platform = {
+  OS: 'ios', // Default to iOS
+  Version: 14,
+};
+
+jest.mock('react-native', () => ({
+  Platform,
+}));
 
 describe('parseScanResponse', () => {
   beforeEach(() => {
@@ -46,18 +43,16 @@ describe('parseScanResponse', () => {
     const result = parseScanResponse(response);
     expect(result.mrz).toBe(mrz);
     expect(result.documentType).toBe('passport');
+    // 'abcd' in hex: ab = 171, cd = 205
     expect(result.dg1Hash).toEqual([171, 205]);
+    // '1234' in hex: 12 = 18, 34 = 52
     expect(result.dg2Hash).toEqual([18, 52]);
   });
 
   it('parses Android response', () => {
     // Temporarily override Platform.OS for this test
     const originalOS = Platform.OS;
-    Object.defineProperty(Platform, 'OS', {
-      value: 'android',
-      writable: true,
-      configurable: true,
-    });
+    Platform.OS = 'android';
 
     const mrz =
       'P<UTOERIKSSON<<ANNA<MARIA<<<<<<<<<<<<<<<<<<<L898902C<3UTO6908061F9406236ZE184226B<<<<<14';
@@ -67,21 +62,21 @@ describe('parseScanResponse', () => {
       encryptedDigest: JSON.stringify([6, 7]),
       encapContent: JSON.stringify([8, 9]),
       documentSigningCertificate: 'CERT',
-      dataGroupHashes: JSON.stringify({ '1': 'abcd', '2': [1, 2, 3] }),
+      // Android format: '1' and '2' are hex strings, not arrays
+      dataGroupHashes: JSON.stringify({ '1': 'abcd', '2': '1234' }),
     } as any;
 
     const result = parseScanResponse(response);
     expect(result.documentType).toBe('passport');
     expect(result.mrz).toBe(mrz);
+    // 'abcd' in hex: ab = 171, cd = 205
     expect(result.dg1Hash).toEqual([171, 205]);
+    // dg2Hash should be parsed from hex string '1234': 12 = 18, 34 = 52
+    expect(result.dg2Hash).toEqual([18, 52]);
     expect(result.dgPresents).toEqual([1, 2]);
 
     // Restore original value
-    Object.defineProperty(Platform, 'OS', {
-      value: originalOS,
-      writable: true,
-      configurable: true,
-    });
+    Platform.OS = originalOS;
   });
 
   it('handles malformed iOS response', () => {
@@ -93,11 +88,7 @@ describe('parseScanResponse', () => {
 
   it('handles malformed Android response', () => {
     const originalOS = Platform.OS;
-    Object.defineProperty(Platform, 'OS', {
-      value: 'android',
-      writable: true,
-      configurable: true,
-    });
+    Platform.OS = 'android';
 
     const response = {
       mrz: 'valid_mrz',
@@ -108,11 +99,7 @@ describe('parseScanResponse', () => {
     expect(() => parseScanResponse(response)).toThrow();
 
     // Restore original value
-    Object.defineProperty(Platform, 'OS', {
-      value: originalOS,
-      writable: true,
-      configurable: true,
-    });
+    Platform.OS = originalOS;
   });
 
   it('handles missing required fields', () => {
@@ -159,6 +146,13 @@ describe('scan', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    // Reset PassportReader mock before each test
+    // The implementation checks for scanPassport property, so we need to ensure it exists
+    Object.defineProperty(PassportReader, 'scanPassport', {
+      writable: true,
+      configurable: true,
+      value: undefined,
+    });
   });
 
   describe('iOS platform', () => {
@@ -170,7 +164,12 @@ describe('scan', () => {
         dataGroupHashes: JSON.stringify({}),
       });
 
-      (PassportReader as any).scanPassport = mockScanPassport;
+      // Set the mock function directly on PassportReader
+      Object.defineProperty(PassportReader, 'scanPassport', {
+        writable: true,
+        configurable: true,
+        value: mockScanPassport,
+      });
 
       await scan(mockInputs);
 
@@ -194,7 +193,11 @@ describe('scan', () => {
         dataGroupHashes: JSON.stringify({}),
       });
 
-      (PassportReader as any).scanPassport = mockScanPassport;
+      Object.defineProperty(PassportReader, 'scanPassport', {
+        writable: true,
+        configurable: true,
+        value: mockScanPassport,
+      });
 
       const minimalInputs = {
         passportNumber: 'L898902C3',
@@ -225,7 +228,11 @@ describe('scan', () => {
         dataGroupHashes: JSON.stringify({}),
       });
 
-      (PassportReader as any).scanPassport = mockScanPassport;
+      Object.defineProperty(PassportReader, 'scanPassport', {
+        writable: true,
+        configurable: true,
+        value: mockScanPassport,
+      });
 
       const fullInputs = {
         ...mockInputs,
@@ -265,7 +272,11 @@ describe('scan', () => {
         dataGroupHashes: JSON.stringify({}),
       });
 
-      (PassportReader as any).scanPassport = mockScanPassport;
+      Object.defineProperty(PassportReader, 'scanPassport', {
+        writable: true,
+        configurable: true,
+        value: mockScanPassport,
+      });
 
       await scan(mockInputs);
 

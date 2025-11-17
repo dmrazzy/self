@@ -35,7 +35,7 @@ import UnverifiedHumanImage from '@/images/unverified_human.png';
 import type { RootStackParamList } from '@/navigation';
 import { usePassport } from '@/providers/passportDataProvider';
 import useUserStore from '@/stores/userStore';
-import { black, slate50, slate300 } from '@/utils/colors';
+import { black, blue600, slate50, slate300 } from '@/utils/colors';
 import { dinot } from '@/utils/fonts';
 
 const HomeScreen: React.FC = () => {
@@ -302,11 +302,12 @@ const HomeScreen: React.FC = () => {
           testID="earn-points-button"
           onPress={() => {
             selfClient.trackEvent(PointEvents.HOME_POINT_EARN_POINTS_OPENED);
+
             onEarnPointsPress(true);
           }}
         >
           <Text
-            color="#2563EB"
+            color={blue600}
             textAlign="center"
             fontFamily={dinot}
             fontSize={18}

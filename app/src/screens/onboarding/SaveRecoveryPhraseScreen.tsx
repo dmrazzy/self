@@ -23,6 +23,8 @@ import { black, slate400, white } from '@/utils/colors';
 const SaveRecoveryPhraseScreen: React.FC = () => {
   const [userHasSeenMnemonic, setUserHasSeenMnemonic] = useState(false);
   const { mnemonic, loadMnemonic } = useMnemonic();
+  // DISABLED FOR NOW: Turnkey functionality
+  // const { cloudBackupEnabled, turnkeyBackupEnabled } = useSettingStore();
   const { cloudBackupEnabled } = useSettingStore();
 
   const onRevealWords = useCallback(async () => {
@@ -60,7 +62,8 @@ const SaveRecoveryPhraseScreen: React.FC = () => {
       >
         <Mnemonic words={mnemonic} onRevealWords={onRevealWords} />
         <Caption style={{ color: slate400 }}>
-          You can reveal your recovery phrase in settings.
+          You can reveal your recovery phrase or manage your backups in
+          settings.
         </Caption>
         <PrimaryButton onPress={onCloudBackupPress}>
           Manage {STORAGE_NAME} backups

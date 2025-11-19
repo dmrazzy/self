@@ -2,18 +2,27 @@
 // SPDX-License-Identifier: BUSL-1.1
 // NOTE: Converts to Apache-2.0 on 2029-06-11 per LICENSE.
 
-import React from 'react';
 import { Linking } from 'react-native';
-import { render, screen, waitFor } from '@testing-library/react-native';
+import { useNavigation } from '@react-navigation/native';
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react-native';
 
 import { WebViewScreen } from '@/screens/shared/WebViewScreen';
 
+jest.mock('@react-navigation/native', () => ({
+  useNavigation: jest.fn(),
+  useFocusEffect: jest.fn(),
+}));
+
 jest.mock('react-native-webview', () => {
-  const ReactModule = require('react');
-  const { View } = require('react-native');
-  const MockWebView = ReactModule.forwardRef((props: any, _ref) => {
-    return ReactModule.createElement(View, { testID: 'webview', ...props });
-  });
+  // Lightweight host component so React can render while keeping props inspectable
+  const MockWebView = ({ testID = 'webview', ...props }: any) => (
+    <mock-webview testID={testID} {...props} />
+  );
   MockWebView.displayName = 'MockWebView';
   return {
     __esModule: true,
@@ -21,6 +30,8 @@ jest.mock('react-native-webview', () => {
     WebView: MockWebView,
   };
 });
+
+const mockGoBack = jest.fn();
 
 describe('WebViewScreen URL sanitization and navigation interception', () => {
   const createProps = (initialUrl?: string, title?: string) => {
@@ -40,12 +51,25 @@ describe('WebViewScreen URL sanitization and navigation interception', () => {
   };
 
   beforeEach(() => {
+    (useNavigation as jest.Mock).mockReturnValue({
+      goBack: mockGoBack,
+      canGoBack: () => true,
+    });
     jest.spyOn(console, 'error').mockImplementation(() => {});
   });
 
   afterEach(() => {
     jest.resetAllMocks();
     (console.error as jest.Mock).mockRestore?.();
+  });
+
+  it('navigates back when close button is pressed', () => {
+    render(<WebViewScreen {...createProps('https://self.xyz')} />);
+    // The Button component renders with msdk-button testID, find by icon
+    const closeButtonIcon = screen.getByTestId('icon-x');
+    const closeButton = closeButtonIcon.parent?.parent;
+    fireEvent.press(closeButton!);
+    expect(mockGoBack).toHaveBeenCalledTimes(1);
   });
 
   it('sanitizes initial non-http(s) url and uses default', () => {

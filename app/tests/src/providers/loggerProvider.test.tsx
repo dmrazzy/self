@@ -2,7 +2,11 @@
 // SPDX-License-Identifier: BUSL-1.1
 // NOTE: Converts to Apache-2.0 on 2029-06-11 per LICENSE.
 
-import React, { useEffect } from 'react';
+/**
+ * @jest-environment node
+ */
+
+import { useEffect } from 'react';
 import { Text } from 'react-native';
 import { render, screen } from '@testing-library/react-native';
 

@@ -8,10 +8,6 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { countryCodes } from '@selfxyz/common/constants';
 import {
-  hasAnyValidRegisteredDocument,
-  useSelfClient,
-} from '@selfxyz/mobile-sdk-alpha';
-import {
   BodyText,
   PrimaryButton,
   RoundFlag,
@@ -36,8 +32,6 @@ type ComingSoonScreenProps = NativeStackScreenProps<
 >;
 
 const ComingSoonScreen: React.FC<ComingSoonScreenProps> = ({ route }) => {
-  const selfClient = useSelfClient();
-  const navigateToLaunch = useHapticNavigation('Launch');
   const navigateToHome = useHapticNavigation('Home');
 
   const { countryName, countryCode, documentTypeText } = useMemo(() => {
@@ -82,12 +76,7 @@ const ComingSoonScreen: React.FC<ComingSoonScreenProps> = ({ route }) => {
   }, [route.params?.documentCategory, route.params?.countryCode]);
 
   const onDismiss = async () => {
-    const hasValidDocument = await hasAnyValidRegisteredDocument(selfClient);
-    if (hasValidDocument) {
-      navigateToHome();
-    } else {
-      navigateToLaunch();
-    }
+    navigateToHome();
   };
 
   const onNotifyMe = async () => {

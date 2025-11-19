@@ -32,11 +32,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { CircleHelp } from '@tamagui/lucide-icons';
 
 import type { PassportData } from '@selfxyz/common/types';
-import {
-  hasAnyValidRegisteredDocument,
-  sanitizeErrorMessage,
-  useSelfClient,
-} from '@selfxyz/mobile-sdk-alpha';
+import { sanitizeErrorMessage, useSelfClient } from '@selfxyz/mobile-sdk-alpha';
 import {
   BodyText,
   ButtonsContainer,
@@ -447,9 +443,6 @@ const DocumentNFCScanScreen: React.FC = () => {
     trackEvent,
   ]);
 
-  const navigateToLaunch = useHapticNavigation('Launch', {
-    action: 'cancel',
-  });
   const navigateToHome = useHapticNavigation('Home', {
     action: 'cancel',
   });
@@ -457,12 +450,7 @@ const DocumentNFCScanScreen: React.FC = () => {
   const onCancelPress = async () => {
     flushAllAnalytics();
     logNFCEvent('info', 'scan_cancelled', { ...baseContext, stage: 'cancel' });
-    const hasValidDocument = await hasAnyValidRegisteredDocument(selfClient);
-    if (hasValidDocument) {
-      navigateToHome();
-    } else {
-      navigateToLaunch();
-    }
+    navigateToHome();
   };
 
   useFocusEffect(

@@ -18,7 +18,7 @@ import {
   usePassport,
 } from '@/providers/passportDataProvider';
 
-import { mockAdapters } from '../../utils/selfClientProvider';
+import { mockAdapters } from '../../__setup__/selfClientProvider';
 
 const listeners = new Map();
 

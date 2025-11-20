@@ -760,8 +760,8 @@ const NativeModules = {
 // Make it available globally for any code that expects it
 global.NativeModules = NativeModules;
 
-// Mock @/utils/passportReader to properly expose the interface expected by tests
-jest.mock('./src/utils/passportReader', () => {
+// Mock @/integrations/nfc/passportReader to properly expose the interface expected by tests
+jest.mock('./src/integrations/nfc/passportReader', () => {
   const mockScanPassport = jest.fn();
   // Mock the parameter count for scanPassport (iOS native method takes 9 parameters)
   Object.defineProperty(mockScanPassport, 'length', { value: 9 });
@@ -967,7 +967,7 @@ jest.mock(
   }),
 );
 
-jest.mock('./src/utils/notifications/notificationService', () =>
+jest.mock('./src/services/notifications/notificationService', () =>
   require('./tests/__setup__/notificationServiceMock.js'),
 );
 

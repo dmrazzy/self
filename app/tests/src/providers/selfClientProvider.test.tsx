@@ -6,8 +6,8 @@
 import type { ReactNode } from 'react';
 import { renderHook } from '@testing-library/react-native';
 
-jest.mock('@/images/512w.png', () => 'mock-512w-image');
-jest.mock('@/images/nfc.png', () => 'mock-nfc-image');
+jest.mock('@/assets/images/512w.png', () => 'mock-512w-image');
+jest.mock('@/assets/images/nfc.png', () => 'mock-nfc-image');
 jest.mock('react-native-localize', () => {
   const getLocales = jest.fn(() => [
     {

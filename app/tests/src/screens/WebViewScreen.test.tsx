@@ -48,7 +48,7 @@ jest.mock('@react-navigation/native', () => ({
   useFocusEffect: jest.fn(),
 }));
 
-jest.mock('@/components/NavBar/WebViewNavBar', () => ({
+jest.mock('@/components/navbar/WebViewNavBar', () => ({
   WebViewNavBar: ({ children, onBackPress, ...props }: any) => (
     <mock-webview-navbar {...props}>
       <mock-pressable testID="icon-x" onPress={onBackPress} />

@@ -11,15 +11,15 @@ import { useEffect } from 'react';
 import { render, screen } from '@testing-library/react-native';
 
 import { LoggerProvider, useLogger } from '@/providers/loggerProvider';
-import { AppLogger, NfcLogger } from '@/utils/logger';
+import { AppLogger, NfcLogger } from '@/services/logging';
 
 // Mock the native logger bridge
-jest.mock('@/utils/logger/nativeLoggerBridge', () => ({
+jest.mock('@/services/logging/logger/nativeLoggerBridge', () => ({
   cleanup: jest.fn(),
 }));
 
 // Mock the logger utilities
-jest.mock('@/utils/logger', () => ({
+jest.mock('@/services/logging', () => ({
   AppLogger: {
     debug: jest.fn(),
     info: jest.fn(),

@@ -12,9 +12,16 @@ import {
   hasAnyValidRegisteredDocument,
   useSelfClient,
 } from '@selfxyz/mobile-sdk-alpha';
+import { black } from '@selfxyz/mobile-sdk-alpha/constants/colors';
 
 import splashAnimation from '@/assets/animations/splash.json';
+import { impactLight } from '@/integrations/haptics';
 import type { RootStackParamList } from '@/navigation';
+import {
+  getAndClearQueuedUrl,
+  handleUrl,
+  setDeeplinkParentScreen,
+} from '@/navigation/deeplinks';
 import { migrateToSecureKeychain, useAuth } from '@/providers/authProvider';
 import {
   checkAndUpdateRegistrationStates,
@@ -23,14 +30,7 @@ import {
   migrateFromLegacyStorage,
 } from '@/providers/passportDataProvider';
 import { useSettingStore } from '@/stores/settingStore';
-import { black } from '@/utils/colors';
-import {
-  getAndClearQueuedUrl,
-  handleUrl,
-  setDeeplinkParentScreen,
-} from '@/utils/deeplinks';
 import { IS_DEV_MODE } from '@/utils/devUtils';
-import { impactLight } from '@/utils/haptic';
 
 const SplashScreen: React.FC = ({}) => {
   const selfClient = useSelfClient();

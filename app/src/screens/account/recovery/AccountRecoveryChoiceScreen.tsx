@@ -32,9 +32,9 @@ import RestoreAccountSvg from '@/assets/icons/restore_account.svg';
 import useHapticNavigation from '@/hooks/useHapticNavigation';
 import { ExpandableBottomLayout } from '@/layouts/ExpandableBottomLayout';
 import type { RootStackParamList } from '@/navigation';
-import { useAuth } from '@/providers/authProvider';
+import { getPrivateKeyFromMnemonic, useAuth } from '@/providers/authProvider';
 import {
-  loadPassportDataAndSecret,
+  loadPassportData,
   reStorePassportDataWithRightCSCA,
 } from '@/providers/passportDataProvider';
 import { STORAGE_NAME, useBackupMnemonic } from '@/services/cloud-backup';
@@ -85,32 +85,55 @@ const AccountRecoveryChoiceScreen: React.FC = () => {
           return false;
         }
 
-        const passportDataAndSecret =
-          (await loadPassportDataAndSecret()) as string;
-        const { passportData, secret } = JSON.parse(passportDataAndSecret);
-        const { isRegistered, csca } =
-          await isUserRegisteredWithAlternativeCSCA(passportData, secret, {
-            getCommitmentTree(docCategory) {
-              return useProtocolStore.getState()[docCategory].commitment_tree;
-            },
-            getAltCSCA(docCategory) {
-              if (docCategory === 'aadhaar') {
-                const publicKeys =
-                  useProtocolStore.getState().aadhaar.public_keys;
-                // Convert string[] to Record<string, string> format expected by AlternativeCSCA
-                return publicKeys
-                  ? Object.fromEntries(publicKeys.map(key => [key, key]))
-                  : {};
-              }
+        const passportData = await loadPassportData();
+        const secret = getPrivateKeyFromMnemonic(mnemonic.phrase);
 
-              return useProtocolStore.getState()[docCategory].alternative_csca;
-            },
+        if (!passportData || !secret) {
+          console.warn('Failed to load passport data or secret');
+          trackEvent(BackupEvents.CLOUD_RESTORE_FAILED_AUTH, {
+            reason: 'no_passport_data_or_secret',
           });
+          navigation.navigate({ name: 'Home', params: {} });
+          setRestoring(false);
+          return false;
+        }
+
+        const passportDataParsed = JSON.parse(passportData);
+
+        const { isRegistered, csca } =
+          await isUserRegisteredWithAlternativeCSCA(
+            passportDataParsed,
+            secret as string,
+            {
+              getCommitmentTree(docCategory) {
+                return useProtocolStore.getState()[docCategory].commitment_tree;
+              },
+              getAltCSCA(docCategory) {
+                if (docCategory === 'aadhaar') {
+                  const publicKeys =
+                    useProtocolStore.getState().aadhaar.public_keys;
+                  // Convert string[] to Record<string, string> format expected by AlternativeCSCA
+                  return publicKeys
+                    ? Object.fromEntries(publicKeys.map(key => [key, key]))
+                    : {};
+                }
+
+                return useProtocolStore.getState()[docCategory]
+                  .alternative_csca;
+              },
+            },
+          );
         if (!isRegistered) {
           console.warn(
             'Secret provided did not match a registered ID. Please try again.',
           );
-          trackEvent(BackupEvents.CLOUD_RESTORE_FAILED_PASSPORT_NOT_REGISTERED);
+          trackEvent(
+            BackupEvents.CLOUD_RESTORE_FAILED_PASSPORT_NOT_REGISTERED,
+            {
+              reason: 'document_not_registered',
+              hasCSCA: !!csca,
+            },
+          );
           navigation.navigate({ name: 'Home', params: {} });
           setRestoring(false);
           return false;
@@ -118,7 +141,10 @@ const AccountRecoveryChoiceScreen: React.FC = () => {
         if (isCloudRestore && !cloudBackupEnabled) {
           toggleCloudBackupEnabled();
         }
-        reStorePassportDataWithRightCSCA(passportData, csca as string);
+        await reStorePassportDataWithRightCSCA(
+          passportDataParsed,
+          csca as string,
+        );
         await markCurrentDocumentAsRegistered(selfClient);
         trackEvent(BackupEvents.CLOUD_RESTORE_SUCCESS);
         trackEvent(BackupEvents.ACCOUNT_RECOVERY_COMPLETED);

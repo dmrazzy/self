@@ -108,7 +108,7 @@ describe('parseScanResponse', () => {
     expect(result.dg2Hash).toEqual([18, 52]);
   });
 
-  it.skip('parses Android response', () => {
+  it('parses Android response', () => {
     // Set Platform.OS to android for this test
     global.mockPlatformOS = 'android';
 

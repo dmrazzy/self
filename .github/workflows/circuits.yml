@@ -18,12 +18,17 @@ jobs:
       - name: Check if should run
         id: filter
         run: |
+          set -e
           if [[ "${{ github.base_ref }}" == "main" ]] || [[ "${{ github.base_ref }}" == "staging" ]]; then
             echo "should_run=true" >> $GITHUB_OUTPUT
             echo "Running for ${{ github.base_ref }} - no path filter"
           else
             # For dev branch, check if circuits files changed
-            if git diff --name-only origin/${{ github.base_ref }}...HEAD | grep -q "^circuits/"; then
+            CHANGED_FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD) || {
+              echo "Error: Failed to diff against base branch"
+              exit 1
+            }
+            if echo "$CHANGED_FILES" | grep -qE "^circuits/"; then
               echo "should_run=true" >> $GITHUB_OUTPUT
               echo "Running for dev - circuits files changed"
             else

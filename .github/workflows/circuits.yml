@@ -51,7 +51,7 @@ jobs:
       CIRCOM_VERSION: "2.1.9"
       CIRCOM_SHA256: "e5575829252d763b7818049df9de2ef9304df834697de77fa63ce7babc23c967"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       # Circom installation from https://github.com/erhant/circomkit/blob/main/.github/workflows/tests.yml
       - name: Install dependencies

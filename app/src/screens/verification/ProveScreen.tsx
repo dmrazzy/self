@@ -93,8 +93,13 @@ const ProveScreen: React.FC = () => {
   const scrollViewRef = useRef<ScrollViewType>(null);
 
   const isContentShorterThanScrollView = useMemo(
-    () => scrollViewContentHeight <= scrollViewHeight,
+    () => scrollViewContentHeight <= scrollViewHeight + 50,
     [scrollViewContentHeight, scrollViewHeight],
+  );
+
+  const isScrollable = useMemo(
+    () => !isContentShorterThanScrollView && hasLayoutMeasurements,
+    [isContentShorterThanScrollView, hasLayoutMeasurements],
   );
   const provingStore = useProvingStore();
   const currentState = useProvingStore(state => state.currentState);
@@ -255,7 +260,7 @@ const ProveScreen: React.FC = () => {
       }
       const { layoutMeasurement, contentOffset, contentSize } =
         event.nativeEvent;
-      const paddingToBottom = 10;
+      const paddingToBottom = 50;
       const isCloseToBottom =
         layoutMeasurement.height + contentOffset.y >=
         contentSize.height - paddingToBottom;
@@ -287,7 +292,7 @@ const ProveScreen: React.FC = () => {
       // If we now have both measurements and content fits on screen, enable button immediately
       if (contentHeight > 0 && scrollViewHeight > 0) {
         setHasLayoutMeasurements(true);
-        if (contentHeight <= scrollViewHeight) {
+        if (contentHeight <= scrollViewHeight + 50) {
           setHasScrolledToBottom(true);
         }
       }
@@ -302,7 +307,7 @@ const ProveScreen: React.FC = () => {
       // If we now have both measurements and content fits on screen, enable button immediately
       if (layoutHeight > 0 && scrollViewContentHeight > 0) {
         setHasLayoutMeasurements(true);
-        if (scrollViewContentHeight <= layoutHeight) {
+        if (scrollViewContentHeight <= layoutHeight + 50) {
           setHasScrolledToBottom(true);
         }
       }
@@ -317,6 +322,20 @@ const ProveScreen: React.FC = () => {
         appName={selectedApp?.appName || 'Self'}
         appUrl={url}
         documentType={documentType}
+        connectedWalletBadge={
+          formattedUserId ? (
+            <ConnectedWalletBadge
+              address={
+                selectedApp?.userIdType === 'hex'
+                  ? truncateAddress(selectedApp?.userId || '')
+                  : formattedUserId
+              }
+              userIdType={selectedApp?.userIdType}
+              onToggle={() => setWalletModalOpen(true)}
+              testID="prove-screen-wallet-badge"
+            />
+          ) : undefined
+        }
         onScroll={handleScroll}
         scrollViewRef={scrollViewRef}
         onContentSizeChange={handleContentSizeChange}
@@ -324,20 +343,8 @@ const ProveScreen: React.FC = () => {
         initialScrollOffset={route.params?.scrollOffset}
         testID="prove-screen-card"
       >
-        {formattedUserId && (
-          <ConnectedWalletBadge
-            address={
-              selectedApp?.userIdType === 'hex'
-                ? truncateAddress(selectedApp?.userId || '')
-                : formattedUserId
-            }
-            userIdType={selectedApp?.userIdType}
-            onToggle={() => setWalletModalOpen(true)}
-            testID="prove-screen-wallet-badge"
-          />
-        )}
-
-        <YStack marginTop={formattedUserId ? 16 : 0}>
+        {/* Disclosure Items */}
+        <YStack marginTop={0}>
           {disclosureItems.map((item, index) => (
             <DisclosureItem
               key={item.key}
@@ -354,6 +361,7 @@ const ProveScreen: React.FC = () => {
         onVerify={onVerify}
         selectedAppSessionId={selectedApp?.sessionId}
         hasScrolledToBottom={hasScrolledToBottom}
+        isScrollable={isScrollable}
         isReadyToProve={isReadyToProve}
         isDocumentExpired={isDocumentExpired}
         testID="prove-screen-verify-bar"

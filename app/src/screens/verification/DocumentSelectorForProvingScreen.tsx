@@ -30,7 +30,7 @@ import {
   isDocumentValidForProving,
   useSelfClient,
 } from '@selfxyz/mobile-sdk-alpha';
-import { blue600, white } from '@selfxyz/mobile-sdk-alpha/constants/colors';
+import { black, white } from '@selfxyz/mobile-sdk-alpha/constants/colors';
 import { dinot } from '@selfxyz/mobile-sdk-alpha/constants/fonts';
 
 import type { IDSelectorState } from '@/components/documents';
@@ -341,7 +341,7 @@ const DocumentSelectorForProvingScreen: React.FC = () => {
         justifyContent="center"
         testID="document-selector-loading-container"
       >
-        <ActivityIndicator color={blue600} size="large" />
+        <ActivityIndicator color={black} size="large" />
       </View>
     );
   }
@@ -418,25 +418,25 @@ const DocumentSelectorForProvingScreen: React.FC = () => {
         appName={selfApp?.appName || 'Self'}
         appUrl={url}
         documentType={selectedDocumentType}
+        connectedWalletBadge={
+          formattedUserId ? (
+            <ConnectedWalletBadge
+              address={
+                selfApp?.userIdType === 'hex'
+                  ? truncateAddress(selfApp?.userId || '')
+                  : formattedUserId
+              }
+              userIdType={selfApp?.userIdType}
+              onToggle={() => setWalletModalOpen(true)}
+              testID="document-selector-wallet-badge"
+            />
+          ) : undefined
+        }
         onScroll={handleScroll}
         testID="document-selector-card"
       >
-        {/* Connected Wallet Badge */}
-        {formattedUserId && (
-          <ConnectedWalletBadge
-            address={
-              selfApp?.userIdType === 'hex'
-                ? truncateAddress(selfApp?.userId || '')
-                : formattedUserId
-            }
-            userIdType={selfApp?.userIdType}
-            onToggle={() => setWalletModalOpen(true)}
-            testID="document-selector-wallet-badge"
-          />
-        )}
-
         {/* Disclosure Items */}
-        <YStack marginTop={formattedUserId ? 16 : 0}>
+        <YStack marginTop={0}>
           {disclosureItems.map((item, index) => (
             <DisclosureItem
               key={item.key}

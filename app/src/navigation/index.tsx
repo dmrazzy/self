@@ -27,6 +27,7 @@ import documentsScreens from '@/navigation/documents';
 import homeScreens from '@/navigation/home';
 import onboardingScreens from '@/navigation/onboarding';
 import sharedScreens from '@/navigation/shared';
+import starfallScreens from '@/navigation/starfall';
 import verificationScreens from '@/navigation/verification';
 import type { ModalNavigationParams } from '@/screens/app/ModalScreen';
 import type { WebViewScreenParams } from '@/screens/shared/WebViewScreen';
@@ -41,6 +42,7 @@ export const navigationScreens = {
   ...verificationScreens,
   ...accountScreens,
   ...sharedScreens,
+  ...starfallScreens,
   ...devScreens, // allow in production for testing
 };
 
@@ -71,6 +73,8 @@ export type RootStackParamList = Omit<
   | 'Disclaimer'
   | 'DocumentNFCScan'
   | 'DocumentOnboarding'
+  | 'DocumentSelectorForProving'
+  | 'ProvingScreenRouter'
   | 'Gratification'
   | 'Home'
   | 'IDPicker'
@@ -140,13 +144,24 @@ export type RootStackParamList = Omit<
         returnToScreen?: 'Points';
       }
     | undefined;
+  ProofSettings: undefined;
   AccountVerifiedSuccess: undefined;
 
   // Proof/Verification screens
   ProofHistoryDetail: {
     data: ProofHistory;
   };
-  Prove: undefined;
+  Prove:
+    | {
+        scrollOffset?: number;
+      }
+    | undefined;
+  ProvingScreenRouter: undefined;
+  DocumentSelectorForProving:
+    | {
+        documentType?: string;
+      }
+    | undefined;
 
   // App screens
   Loading: {
@@ -158,6 +173,7 @@ export type RootStackParamList = Omit<
   Gratification: {
     points?: number;
   };
+  StarfallPushCode: undefined;
 
   // Home screens
   Home: {

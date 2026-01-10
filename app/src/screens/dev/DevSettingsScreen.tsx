@@ -255,7 +255,10 @@ const ScreenSelector = ({}) => {
                 />
               </Button>
             </XStack>
-            <ScrollView showsVerticalScrollIndicator={false}>
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={{ paddingBottom: 100 }}
+            >
               {screenList.map(item => (
                 <TouchableOpacity
                   key={item}
@@ -660,11 +663,11 @@ const DevSettingsScreen: React.FC<DevSettingsScreenProps> = ({}) => {
         >
           <YStack gap="$2">
             <TopicToggleButton
-              label="Nova"
+              label="Starfall"
               isSubscribed={
                 hasNotificationPermission && subscribedTopics.includes('nova')
               }
-              onToggle={() => handleTopicToggle(['nova'], 'Nova')}
+              onToggle={() => handleTopicToggle(['nova'], 'Starfall')}
             />
             <TopicToggleButton
               label="General"
@@ -675,7 +678,7 @@ const DevSettingsScreen: React.FC<DevSettingsScreenProps> = ({}) => {
               onToggle={() => handleTopicToggle(['general'], 'General')}
             />
             <TopicToggleButton
-              label="Both (Nova + General)"
+              label="Both (Starfall + General)"
               isSubscribed={
                 hasNotificationPermission &&
                 subscribedTopics.includes('nova') &&

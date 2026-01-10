@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 // NOTE: Converts to Apache-2.0 on 2029-06-11 per LICENSE.
 
-import LottieView from 'lottie-react-native';
 import React, {
   useCallback,
   useEffect,
@@ -14,33 +13,34 @@ import type {
   LayoutChangeEvent,
   NativeScrollEvent,
   NativeSyntheticEvent,
+  ScrollView as ScrollViewType,
 } from 'react-native';
-import { ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
-import { Image, Text, View, XStack, YStack } from 'tamagui';
-import { useIsFocused, useNavigation } from '@react-navigation/native';
+import { StyleSheet } from 'react-native';
+import { View, YStack } from 'tamagui';
+import type { RouteProp } from '@react-navigation/native';
+import {
+  useIsFocused,
+  useNavigation,
+  useRoute,
+} from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Eye, EyeOff } from '@tamagui/lucide-icons';
 
 import { isMRZDocument } from '@selfxyz/common';
-import type { SelfAppDisclosureConfig } from '@selfxyz/common/utils/appType';
-import { formatEndpoint } from '@selfxyz/common/utils/scope';
 import { loadSelectedDocument, useSelfClient } from '@selfxyz/mobile-sdk-alpha';
-import miscAnimation from '@selfxyz/mobile-sdk-alpha/animations/loading/misc.json';
-import {
-  BodyText,
-  Caption,
-  HeldPrimaryButtonProveScreen,
-} from '@selfxyz/mobile-sdk-alpha/components';
 import { ProofEvents } from '@selfxyz/mobile-sdk-alpha/constants/analytics';
-import {
-  black,
-  slate300,
-  white,
-} from '@selfxyz/mobile-sdk-alpha/constants/colors';
 
-import Disclosures from '@/components/Disclosures';
+import {
+  BottomVerifyBar,
+  ConnectedWalletBadge,
+  DisclosureItem,
+  ProofRequestCard,
+  proofRequestColors,
+  truncateAddress,
+  WalletAddressModal,
+} from '@/components/proof-request';
+import { useSelfAppData } from '@/hooks/useSelfAppData';
+import { useSelfAppStalenessCheck } from '@/hooks/useSelfAppStalenessCheck';
 import { buttonTap } from '@/integrations/haptics';
-import { ExpandableBottomLayout } from '@/layouts/ExpandableBottomLayout';
 import type { RootStackParamList } from '@/navigation';
 import {
   setDefaultDocumentTypeIfNeeded,
@@ -56,30 +56,50 @@ import {
   checkDocumentExpiration,
   getDocumentAttributes,
 } from '@/utils/documentAttributes';
-import { formatUserId } from '@/utils/formatUserId';
+import { getDocumentTypeName } from '@/utils/documentUtils';
 
 const ProveScreen: React.FC = () => {
   const selfClient = useSelfClient();
   const { trackEvent } = selfClient;
-  const { navigate } =
+  const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const { navigate } = navigation;
+  const route = useRoute<RouteProp<RootStackParamList, 'Prove'>>();
   const isFocused = useIsFocused();
   const { useProvingStore, useSelfAppStore } = selfClient;
   const selectedApp = useSelfAppStore(state => state.selfApp);
+
+  // Extract SelfApp data using hook
+  const { logoSource, url, formattedUserId, disclosureItems } =
+    useSelfAppData(selectedApp);
+
+  // Check for stale data and navigate to Home if needed
+  useSelfAppStalenessCheck(
+    selectedApp,
+    disclosureItems,
+    navigation as NativeStackNavigationProp<RootStackParamList>,
+  );
   const selectedAppRef = useRef<typeof selectedApp>(null);
   const processedSessionsRef = useRef<Set<string>>(new Set());
 
   const [hasScrolledToBottom, setHasScrolledToBottom] = useState(false);
   const [scrollViewContentHeight, setScrollViewContentHeight] = useState(0);
   const [scrollViewHeight, setScrollViewHeight] = useState(0);
-  const [showFullAddress, setShowFullAddress] = useState(false);
+  const [hasLayoutMeasurements, setHasLayoutMeasurements] = useState(false);
   const [isDocumentExpired, setIsDocumentExpired] = useState(false);
+  const [documentType, setDocumentType] = useState('');
+  const [walletModalOpen, setWalletModalOpen] = useState(false);
   const isDocumentExpiredRef = useRef(false);
-  const scrollViewRef = useRef<ScrollView>(null);
+  const scrollViewRef = useRef<ScrollViewType>(null);
 
   const isContentShorterThanScrollView = useMemo(
-    () => scrollViewContentHeight <= scrollViewHeight,
+    () => scrollViewContentHeight <= scrollViewHeight + 50,
     [scrollViewContentHeight, scrollViewHeight],
+  );
+
+  const isScrollable = useMemo(
+    () => !isContentShorterThanScrollView && hasLayoutMeasurements,
+    [isContentShorterThanScrollView, hasLayoutMeasurements],
   );
   const provingStore = useProvingStore();
   const currentState = useProvingStore(state => state.currentState);
@@ -92,6 +112,7 @@ const ProveScreen: React.FC = () => {
     const addHistory = async () => {
       if (provingStore.uuid && selectedApp) {
         const catalog = await loadDocumentCatalog();
+
         const selectedDocumentId = catalog.selectedDocumentId;
 
         addProofHistory({
@@ -109,15 +130,18 @@ const ProveScreen: React.FC = () => {
       }
     };
     addHistory();
-  }, [addProofHistory, provingStore.uuid, selectedApp, loadDocumentCatalog]);
+  }, [addProofHistory, loadDocumentCatalog, provingStore.uuid, selectedApp]);
 
   useEffect(() => {
-    if (isContentShorterThanScrollView) {
-      setHasScrolledToBottom(true);
-    } else {
-      setHasScrolledToBottom(false);
+    // Only update hasScrolledToBottom once we have real layout measurements
+    if (hasLayoutMeasurements) {
+      if (isContentShorterThanScrollView) {
+        setHasScrolledToBottom(true);
+      } else {
+        setHasScrolledToBottom(false);
+      }
     }
-  }, [isContentShorterThanScrollView]);
+  }, [isContentShorterThanScrollView, hasLayoutMeasurements]);
 
   useEffect(() => {
     if (!isFocused || !selectedApp) {
@@ -142,6 +166,9 @@ const ProveScreen: React.FC = () => {
           setIsDocumentExpired(isExpired);
           isDocumentExpiredRef.current = isExpired;
         }
+        setDocumentType(
+          getDocumentTypeName(selectedDocument?.data?.documentCategory),
+        );
       } catch (error) {
         console.error('Error checking document expiration:', error);
         setIsDocumentExpired(false);
@@ -212,43 +239,6 @@ const ProveScreen: React.FC = () => {
     enhanceApp();
   }, [selectedApp, selfClient]);
 
-  const disclosureOptions = useMemo(() => {
-    return (selectedApp?.disclosures as SelfAppDisclosureConfig) || [];
-  }, [selectedApp?.disclosures]);
-
-  // Format the logo source based on whether it's a URL or base64 string
-  const logoSource = useMemo(() => {
-    if (!selectedApp?.logoBase64) {
-      return null;
-    }
-
-    // Check if the logo is already a URL
-    if (
-      selectedApp.logoBase64.startsWith('http://') ||
-      selectedApp.logoBase64.startsWith('https://')
-    ) {
-      return { uri: selectedApp.logoBase64 };
-    }
-
-    // Otherwise handle as base64 as before
-    const base64String = selectedApp.logoBase64.startsWith('data:image')
-      ? selectedApp.logoBase64
-      : `data:image/png;base64,${selectedApp.logoBase64}`;
-    return { uri: base64String };
-  }, [selectedApp?.logoBase64]);
-
-  const url = useMemo(() => {
-    if (!selectedApp?.endpoint) {
-      return null;
-    }
-    return formatEndpoint(selectedApp.endpoint);
-  }, [selectedApp?.endpoint]);
-
-  const formattedUserId = useMemo(
-    () => formatUserId(selectedApp?.userId, selectedApp?.userIdType),
-    [selectedApp?.userId, selectedApp?.userIdType],
-  );
-
   function onVerify() {
     provingStore.setUserConfirmed(selfClient);
     buttonTap();
@@ -270,7 +260,7 @@ const ProveScreen: React.FC = () => {
       }
       const { layoutMeasurement, contentOffset, contentSize } =
         event.nativeEvent;
-      const paddingToBottom = 10;
+      const paddingToBottom = 50;
       const isCloseToBottom =
         layoutMeasurement.height + contentOffset.y >=
         contentSize.height - paddingToBottom;
@@ -299,218 +289,102 @@ const ProveScreen: React.FC = () => {
   const handleContentSizeChange = useCallback(
     (contentWidth: number, contentHeight: number) => {
       setScrollViewContentHeight(contentHeight);
+      // If we now have both measurements and content fits on screen, enable button immediately
+      if (contentHeight > 0 && scrollViewHeight > 0) {
+        setHasLayoutMeasurements(true);
+        if (contentHeight <= scrollViewHeight + 50) {
+          setHasScrolledToBottom(true);
+        }
+      }
     },
-    [],
+    [scrollViewHeight],
   );
 
-  const handleScrollViewLayout = useCallback((event: LayoutChangeEvent) => {
-    setScrollViewHeight(event.nativeEvent.layout.height);
-  }, []);
-
-  const handleAddressToggle = useCallback(() => {
-    if (selectedApp?.userIdType === 'hex') {
-      setShowFullAddress(!showFullAddress);
-      buttonTap();
-    }
-  }, [selectedApp?.userIdType, showFullAddress]);
+  const handleScrollViewLayout = useCallback(
+    (event: LayoutChangeEvent) => {
+      const layoutHeight = event.nativeEvent.layout.height;
+      setScrollViewHeight(layoutHeight);
+      // If we now have both measurements and content fits on screen, enable button immediately
+      if (layoutHeight > 0 && scrollViewContentHeight > 0) {
+        setHasLayoutMeasurements(true);
+        if (scrollViewContentHeight <= layoutHeight + 50) {
+          setHasScrolledToBottom(true);
+        }
+      }
+    },
+    [scrollViewContentHeight],
+  );
 
   return (
-    <ExpandableBottomLayout.Layout flex={1} backgroundColor={black}>
-      <ExpandableBottomLayout.TopSection backgroundColor={black}>
-        <YStack alignItems="center">
-          {!selectedApp?.sessionId ? (
-            <LottieView
-              source={miscAnimation}
-              autoPlay
-              loop
-              resizeMode="cover"
-              cacheComposition={true}
-              renderMode="HARDWARE"
-              style={styles.animation}
-              speed={1}
-              progress={0}
+    <View style={styles.container}>
+      <ProofRequestCard
+        logoSource={logoSource}
+        appName={selectedApp?.appName || 'Self'}
+        appUrl={url}
+        documentType={documentType}
+        connectedWalletBadge={
+          formattedUserId ? (
+            <ConnectedWalletBadge
+              address={
+                selectedApp?.userIdType === 'hex'
+                  ? truncateAddress(selectedApp?.userId || '')
+                  : formattedUserId
+              }
+              userIdType={selectedApp?.userIdType}
+              onToggle={() => setWalletModalOpen(true)}
+              testID="prove-screen-wallet-badge"
             />
-          ) : (
-            <YStack alignItems="center" justifyContent="center">
-              {logoSource && (
-                <Image
-                  marginBottom={20}
-                  source={logoSource}
-                  width={64}
-                  height={64}
-                  objectFit="contain"
-                />
-              )}
-              <BodyText
-                style={{ fontSize: 12, color: slate300, marginBottom: 20 }}
-              >
-                {url}
-              </BodyText>
-              <BodyText
-                style={{ fontSize: 24, color: slate300, textAlign: 'center' }}
-              >
-                <Text color={white}>{selectedApp.appName}</Text> is requesting
-                you to prove the following information:
-              </BodyText>
-            </YStack>
-          )}
-        </YStack>
-      </ExpandableBottomLayout.TopSection>
-      <ExpandableBottomLayout.BottomSection
-        paddingBottom={20}
-        backgroundColor={white}
-        maxHeight={'55%'}
+          ) : undefined
+        }
+        onScroll={handleScroll}
+        scrollViewRef={scrollViewRef}
+        onContentSizeChange={handleContentSizeChange}
+        onLayout={handleScrollViewLayout}
+        initialScrollOffset={route.params?.scrollOffset}
+        testID="prove-screen-card"
       >
-        <ScrollView
-          ref={scrollViewRef}
-          onScroll={handleScroll}
-          scrollEventThrottle={16}
-          onContentSizeChange={handleContentSizeChange}
-          onLayout={handleScrollViewLayout}
-        >
-          <Disclosures disclosures={disclosureOptions} />
+        {/* Disclosure Items */}
+        <YStack marginTop={0}>
+          {disclosureItems.map((item, index) => (
+            <DisclosureItem
+              key={item.key}
+              text={item.text}
+              verified={true}
+              isLast={index === disclosureItems.length - 1}
+              testID={`prove-screen-disclosure-${item.key}`}
+            />
+          ))}
+        </YStack>
+      </ProofRequestCard>
 
-          {/* Display connected wallet or UUID */}
-          {formattedUserId && (
-            <View marginTop={20} paddingHorizontal={20}>
-              <BodyText
-                style={{
-                  fontSize: 16,
-                  color: black,
-                  fontWeight: '600',
-                  marginBottom: 10,
-                }}
-              >
-                {selectedApp?.userIdType === 'hex'
-                  ? 'Connected Wallet'
-                  : 'Connected ID'}
-                :
-              </BodyText>
-              <TouchableOpacity
-                onPress={handleAddressToggle}
-                activeOpacity={selectedApp?.userIdType === 'hex' ? 0.7 : 1}
-                style={{ minHeight: 44 }}
-              >
-                <View
-                  backgroundColor={slate300}
-                  padding={15}
-                  borderRadius={8}
-                  marginBottom={10}
-                >
-                  <XStack alignItems="center" justifyContent="space-between">
-                    <View
-                      flex={1}
-                      marginRight={selectedApp?.userIdType === 'hex' ? 12 : 0}
-                    >
-                      <BodyText
-                        style={{
-                          fontSize: 14,
-                          color: black,
-                          lineHeight: 20,
-                          ...(showFullAddress &&
-                          selectedApp?.userIdType === 'hex'
-                            ? { fontFamily: 'monospace' }
-                            : {}),
-                          flexWrap: showFullAddress ? 'wrap' : 'nowrap',
-                        }}
-                      >
-                        {selectedApp?.userIdType === 'hex' && showFullAddress
-                          ? selectedApp.userId
-                          : formattedUserId}
-                      </BodyText>
-                    </View>
-                    {selectedApp?.userIdType === 'hex' && (
-                      <View alignItems="center" justifyContent="center">
-                        {showFullAddress ? (
-                          <EyeOff size={16} color={black} />
-                        ) : (
-                          <Eye size={16} color={black} />
-                        )}
-                      </View>
-                    )}
-                  </XStack>
-                  {selectedApp?.userIdType === 'hex' && (
-                    <BodyText
-                      style={{
-                        fontSize: 12,
-                        color: black,
-                        opacity: 0.6,
-                        marginTop: 4,
-                      }}
-                    >
-                      {showFullAddress
-                        ? 'Tap to hide address'
-                        : 'Tap to show full address'}
-                    </BodyText>
-                  )}
-                </View>
-              </TouchableOpacity>
-            </View>
-          )}
+      <BottomVerifyBar
+        onVerify={onVerify}
+        selectedAppSessionId={selectedApp?.sessionId}
+        hasScrolledToBottom={hasScrolledToBottom}
+        isScrollable={isScrollable}
+        isReadyToProve={isReadyToProve}
+        isDocumentExpired={isDocumentExpired}
+        testID="prove-screen-verify-bar"
+      />
 
-          {/* Display userDefinedData if it exists */}
-          {selectedApp?.userDefinedData && (
-            <View marginTop={20} paddingHorizontal={20}>
-              <BodyText
-                style={{
-                  fontSize: 16,
-                  color: black,
-                  fontWeight: '600',
-                  marginBottom: 10,
-                }}
-              >
-                Additional Information:
-              </BodyText>
-              <View
-                backgroundColor={slate300}
-                padding={15}
-                borderRadius={8}
-                marginBottom={10}
-              >
-                <BodyText
-                  style={{ fontSize: 14, color: black, lineHeight: 20 }}
-                >
-                  {selectedApp.userDefinedData}
-                </BodyText>
-              </View>
-            </View>
-          )}
-
-          <View marginTop={20}>
-            <Caption
-              style={{
-                textAlign: 'center',
-                fontSize: 12,
-                marginBottom: 20,
-                marginTop: 10,
-                borderRadius: 4,
-                paddingBottom: 20,
-              }}
-            >
-              Self will confirm that these details are accurate and none of your
-              confidential info will be revealed to {selectedApp?.appName}
-            </Caption>
-          </View>
-        </ScrollView>
-        <HeldPrimaryButtonProveScreen
-          onVerify={onVerify}
-          selectedAppSessionId={selectedApp?.sessionId}
-          hasScrolledToBottom={hasScrolledToBottom}
-          isReadyToProve={isReadyToProve}
-          isDocumentExpired={isDocumentExpired}
+      {formattedUserId && selectedApp?.userId && (
+        <WalletAddressModal
+          visible={walletModalOpen}
+          onClose={() => setWalletModalOpen(false)}
+          address={selectedApp.userId}
+          userIdType={selectedApp?.userIdType}
+          testID="prove-screen-wallet-modal"
         />
-      </ExpandableBottomLayout.BottomSection>
-    </ExpandableBottomLayout.Layout>
+      )}
+    </View>
   );
 };
 
 export default ProveScreen;
 
 const styles = StyleSheet.create({
-  animation: {
-    top: 0,
-    width: 200,
-    height: 200,
-    transform: [{ scale: 2 }, { translateY: -20 }],
+  container: {
+    flex: 1,
+    backgroundColor: proofRequestColors.white,
   },
 });

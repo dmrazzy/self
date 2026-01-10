@@ -62,6 +62,7 @@ describe('navigation', () => {
         'DocumentNFCScan',
         'DocumentNFCTrouble',
         'DocumentOnboarding',
+        'DocumentSelectorForProving',
         'Gratification',
         'Home',
         'IDPicker',
@@ -75,7 +76,9 @@ describe('navigation', () => {
         'ProofHistory',
         'ProofHistoryDetail',
         'ProofRequestStatus',
+        'ProofSettings',
         'Prove',
+        'ProvingScreenRouter',
         'QRCodeTrouble',
         'QRCodeViewFinder',
         'RecoverWithPhrase',
@@ -84,6 +87,7 @@ describe('navigation', () => {
         'Settings',
         'ShowRecoveryPhrase',
         'Splash',
+        'StarfallPushCode',
         'WebView',
       ]);
     });

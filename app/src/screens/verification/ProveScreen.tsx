@@ -15,7 +15,7 @@ import type {
   NativeSyntheticEvent,
   ScrollView as ScrollViewType,
 } from 'react-native';
-import { StyleSheet } from 'react-native';
+import { StyleSheet, useWindowDimensions } from 'react-native';
 import { View, YStack } from 'tamagui';
 import type { RouteProp } from '@react-navigation/native';
 import {
@@ -78,12 +78,12 @@ const ProveScreen: React.FC = () => {
   const [hasScrolledToBottom, setHasScrolledToBottom] = useState(false);
   const [scrollViewContentHeight, setScrollViewContentHeight] = useState(0);
   const [scrollViewHeight, setScrollViewHeight] = useState(0);
-  const [hasLayoutMeasurements, setHasLayoutMeasurements] = useState(false);
   const [isDocumentExpired, setIsDocumentExpired] = useState(false);
   const [documentType, setDocumentType] = useState('');
   const [walletModalOpen, setWalletModalOpen] = useState(false);
   const isDocumentExpiredRef = useRef(false);
   const scrollViewRef = useRef<ScrollViewType>(null);
+  const hasInitializedScrollStateRef = useRef(false);
 
   const isContentShorterThanScrollView = useMemo(
     () => scrollViewContentHeight <= scrollViewHeight + 50,
@@ -91,12 +91,26 @@ const ProveScreen: React.FC = () => {
   );
 
   const isScrollable = useMemo(
-    () => !isContentShorterThanScrollView && hasLayoutMeasurements,
-    [isContentShorterThanScrollView, hasLayoutMeasurements],
+    () => !isContentShorterThanScrollView,
+    [isContentShorterThanScrollView],
   );
   const provingStore = useProvingStore();
   const currentState = useProvingStore(state => state.currentState);
   const isReadyToProve = currentState === 'ready_to_prove';
+
+  // Use window dimensions for dynamic scroll offset padding
+  // This scales with viewport height rather than using hardcoded platform values
+  const { height: windowHeight } = useWindowDimensions();
+
+  const initialScrollOffset = useMemo(() => {
+    if (route.params?.scrollOffset === undefined) {
+      return undefined;
+    }
+    // Use ~1.5% of window height as padding to account for minor layout differences
+    // This scales appropriately across different device sizes
+    const padding = windowHeight * 0.01;
+    return route.params.scrollOffset + padding;
+  }, [route.params?.scrollOffset, windowHeight]);
 
   const { addProofHistory } = useProofHistoryStore();
   const { loadDocumentCatalog } = usePassport();
@@ -126,19 +140,38 @@ const ProveScreen: React.FC = () => {
   }, [addProofHistory, loadDocumentCatalog, provingStore.uuid, selectedApp]);
 
   useEffect(() => {
-    // Only update hasScrolledToBottom once we have real layout measurements
-    if (hasLayoutMeasurements) {
-      if (isContentShorterThanScrollView) {
-        setHasScrolledToBottom(true);
-      } else {
-        setHasScrolledToBottom(false);
-      }
+    // Wait for actual measurements before determining initial scroll state
+    // Both start at 0, causing false-positive on first render
+    const hasMeasurements = scrollViewContentHeight > 0 && scrollViewHeight > 0;
+
+    if (!hasMeasurements || hasInitializedScrollStateRef.current) {
+      return;
     }
-  }, [isContentShorterThanScrollView, hasLayoutMeasurements]);
+
+    // Only auto-enable if content is short enough that no scrolling is needed
+    if (isContentShorterThanScrollView) {
+      setHasScrolledToBottom(true);
+    }
+    // If content is long, leave hasScrolledToBottom as false (require scroll)
+    // Don't explicitly set to false to avoid resetting user's scroll progress
+
+    // Mark as initialized so we don't override user's scroll state later
+    hasInitializedScrollStateRef.current = true;
+  }, [
+    isContentShorterThanScrollView,
+    scrollViewContentHeight,
+    scrollViewHeight,
+  ]);
 
   useEffect(() => {
     if (!isFocused || !selectedApp) {
       return;
+    }
+
+    // Reset scroll state tracking for new session
+    if (selectedAppRef.current?.sessionId !== selectedApp.sessionId) {
+      hasInitializedScrollStateRef.current = false;
+      setHasScrolledToBottom(false);
     }
 
     setDefaultDocumentTypeIfNeeded();
@@ -282,31 +315,14 @@ const ProveScreen: React.FC = () => {
   const handleContentSizeChange = useCallback(
     (contentWidth: number, contentHeight: number) => {
       setScrollViewContentHeight(contentHeight);
-      // If we now have both measurements and content fits on screen, enable button immediately
-      if (contentHeight > 0 && scrollViewHeight > 0) {
-        setHasLayoutMeasurements(true);
-        if (contentHeight <= scrollViewHeight + 50) {
-          setHasScrolledToBottom(true);
-        }
-      }
     },
-    [scrollViewHeight],
+    [],
   );
 
-  const handleScrollViewLayout = useCallback(
-    (event: LayoutChangeEvent) => {
-      const layoutHeight = event.nativeEvent.layout.height;
-      setScrollViewHeight(layoutHeight);
-      // If we now have both measurements and content fits on screen, enable button immediately
-      if (layoutHeight > 0 && scrollViewContentHeight > 0) {
-        setHasLayoutMeasurements(true);
-        if (scrollViewContentHeight <= layoutHeight + 50) {
-          setHasScrolledToBottom(true);
-        }
-      }
-    },
-    [scrollViewContentHeight],
-  );
+  const handleScrollViewLayout = useCallback((event: LayoutChangeEvent) => {
+    const layoutHeight = event.nativeEvent.layout.height;
+    setScrollViewHeight(layoutHeight);
+  }, []);
 
   return (
     <View style={styles.container}>
@@ -333,7 +349,7 @@ const ProveScreen: React.FC = () => {
         scrollViewRef={scrollViewRef}
         onContentSizeChange={handleContentSizeChange}
         onLayout={handleScrollViewLayout}
-        initialScrollOffset={route.params?.scrollOffset}
+        initialScrollOffset={initialScrollOffset}
         testID="prove-screen-card"
       >
         {/* Disclosure Items */}

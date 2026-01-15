@@ -12,7 +12,7 @@ import type { SvgProps } from 'react-native-svg';
 import { Button, ScrollView, View, XStack, YStack } from 'tamagui';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Bug, FileText } from '@tamagui/lucide-icons';
+import { Bug, FileText, Settings2 } from '@tamagui/lucide-icons';
 
 import { BodyText, pressedStyle } from '@selfxyz/mobile-sdk-alpha/components';
 import {
@@ -78,6 +78,7 @@ const routes =
         [Data, 'View document info', 'DocumentDataInfo'],
         [Lock, 'Reveal recovery phrase', 'ShowRecoveryPhrase'],
         [Cloud, 'Cloud backup', 'CloudBackupSettings'],
+        [Settings2 as React.FC<SvgProps>, 'Proof settings', 'ProofSettings'],
         [Feedback, 'Send feedback', 'email_feedback'],
         [ShareIcon, 'Share Self app', 'share'],
         [
@@ -88,6 +89,7 @@ const routes =
       ] satisfies [React.FC<SvgProps>, string, RouteOption][])
     : ([
         [Data, 'View document info', 'DocumentDataInfo'],
+        [Settings2 as React.FC<SvgProps>, 'Proof settings', 'ProofSettings'],
         [Feedback, 'Send feeback', 'email_feedback'],
         [
           FileText as React.FC<SvgProps>,
@@ -105,10 +107,10 @@ const DEBUG_MENU: [React.FC<SvgProps>, string, RouteOption][] = [
 ];
 
 const DOCUMENT_DEPENDENT_ROUTES: RouteOption[] = [
-  'CloudBackupSettings',
   'DocumentDataInfo',
   'ShowRecoveryPhrase',
 ];
+const CLOUD_BACKUP_ROUTE: RouteOption = 'CloudBackupSettings';
 
 const social = [
   [X, xUrl],
@@ -185,16 +187,20 @@ const SettingsScreen: React.FC = () => {
 
   const screenRoutes = useMemo(() => {
     const baseRoutes = isDevMode ? [...routes, ...DEBUG_MENU] : routes;
+    const shouldHideCloudBackup = Platform.OS === 'android';
+    const hasConfirmedRealDocument = hasRealDocument === true;
 
-    // Show all routes while loading or if user has a real document
-    if (hasRealDocument === null || hasRealDocument === true) {
-      return baseRoutes;
-    }
+    return baseRoutes.filter(([, , route]) => {
+      if (DOCUMENT_DEPENDENT_ROUTES.includes(route)) {
+        return hasConfirmedRealDocument;
+      }
 
-    // Only filter out document-related routes if we've confirmed user has no real documents
-    return baseRoutes.filter(
-      ([, , route]) => !DOCUMENT_DEPENDENT_ROUTES.includes(route),
-    );
+      if (shouldHideCloudBackup && route === CLOUD_BACKUP_ROUTE) {
+        return hasConfirmedRealDocument;
+      }
+
+      return true;
+    });
   }, [hasRealDocument, isDevMode]);
 
   const devModeTap = Gesture.Tap()
